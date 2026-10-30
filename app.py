@@ -163,7 +163,7 @@ if menu == "📝 Input Laporan Harian":
         st.success("Laporan berhasil dibuat dan tersimpan ke Google Sheets!")
         st.code(wa_output, language="text")
 
-# --- MENU 2: CATAT SETORAN KE BANK ---
+# --- MENU 2: CATAT SETORAN BANK ---
 elif menu == "🏦 Catat Setoran Bank":
     st.title("🏦 Form Pencatatan Setoran Kas ke Bank")
     st.markdown("Gunakan form ini setiap kali ada uang tunai dari kas/brankas SPBU yang disetorkan ke rekening bank.")
@@ -186,27 +186,24 @@ elif menu == "🏦 Catat Setoran Bank":
 # --- MENU 3: DASHBOARD & HISTORI ---
 elif menu == "📊 Dashboard & Histori":
     st.title("📊 Dashboard & Saldo Kas SPBU")
-    st.markdown("Pantau sisa saldo uang di kas/brankas, total setoran bank, dan grafik omzet.")
+    st.markdown("Pantau posisi sisa saldo uang, grafik omzet, dan grafik sisa stok BBM terkini.")
 
     try:
-        # Ambil data dari Google Sheets
         data_riwayat = sheet_riwayat.get_all_records()
         data_bank = sheet_bank.get_all_records()
+        data_stok = sheet_stok.get_all_records()
         
         df_riwayat = pd.DataFrame(data_riwayat) if data_riwayat else pd.DataFrame()
         df_bank = pd.DataFrame(data_bank) if data_bank else pd.DataFrame()
+        df_stok = pd.DataFrame(data_stok) if data_stok else pd.DataFrame()
 
-        # Hitung Total Kas Masuk (Tunai + Transfer + QRIS) - Pengeluaran Operasional
+        # Hitung Saldo Kas
         total_tunai_masuk = df_riwayat["Setor_Tunai"].sum() if not df_riwayat.empty and "Setor_Tunai" in df_riwayat.columns else 0
         total_operasional = df_riwayat["Operasional"].sum() if not df_riwayat.empty and "Operasional" in df_riwayat.columns else 0
-        
-        # Hitung Total yang sudah disetor ke Bank
         total_disetor_bank = df_bank["Jumlah_Setor"].sum() if not df_bank.empty and "Jumlah_Setor" in df_bank.columns else 0
-
-        # Saldo Kas di Brankas Saat Ini = (Total Tunai Masuk) - (Biaya Operasional) - (Total yang sudah disetor ke Bank)
         sisa_kas_brankas = total_tunai_masuk - total_operasional - total_disetor_bank
 
-        # Kotak Informasi Saldo (Metrics)
+        # Tampilkan Metrik Saldo
         st.subheader("💰 Posisi Saldo Kas & Bank Terkini")
         col_s1, col_s2, col_s3 = st.columns(3)
         with col_s1:
@@ -218,14 +215,36 @@ elif menu == "📊 Dashboard & Histori":
             st.metric("📈 Total Akumulasi Omzet", f"Rp {total_omzet_all:,.0f}")
 
         st.markdown("---")
+
+        # --- BAGIAN GRAFIK SISA STOK TERBARU ---
+        st.subheader("⛽ Grafik Posisi Sisa Stok BBM Terkini")
+        if not df_stok.empty:
+            # Ambil baris terakhir dari data stok
+            latest_stok_row = df_stok.iloc[-1]
+            stok_chart_data = pd.DataFrame({
+                "Produk": ["Pertalite", "Biosolar", "Minyak Tanah"],
+                "Sisa Stok (Liter)": [
+                    float(latest_stok_row.get("Sisa_Ptl", 0)),
+                    float(latest_stok_row.get("Sisa_Sol", 0)),
+                    float(latest_stok_row.get("Sisa_Mtn", 0))
+                ]
+            }).set_index("Produk")
+            
+            # Tampilkan sebagai bar chart
+            st.bar_chart(stok_chart_data)
+            st.caption(f"📅 Posisi stok berdasarkan laporan terakhir tanggal: {latest_stok_row.get('tanggal', '-')}")
+        else:
+            st.info("Belum ada data stok yang tercatat.")
+
+        st.markdown("---")
         
-        # Filter Tanggal untuk Dashboard
+        # Filter Tanggal untuk Dashboard Omzet
         if not df_riwayat.empty:
             df_riwayat["Tanggal_DT"] = pd.to_datetime(df_riwayat["Tanggal"], errors="coerce")
             today = date.today()
             first_day_of_month = today.replace(day=1)
             
-            st.subheader("📅 Filter Periode Laporan")
+            st.subheader("📅 Filter Periode Laporan Omzet")
             col_f1, col_f2 = st.columns(2)
             with col_f1:
                 start_date = st.date_input("Dari Tanggal", value=first_day_of_month)
@@ -247,7 +266,7 @@ elif menu == "📊 Dashboard & Histori":
             st.subheader("📋 Histori Laporan Harian")
             st.dataframe(df_filtered.drop(columns=["Tanggal_DT"], errors="ignore"), use_container_width=True)
 
-        # Tampilkan Histori Setoran Bank di bawahnya
+        # Histori Setoran Bank
         st.markdown("---")
         st.subheader("🏦 Riwayat Setoran ke Bank")
         if not df_bank.empty:
@@ -256,4 +275,4 @@ elif menu == "📊 Dashboard & Histori":
             st.info("Belum ada catatan setoran uang ke bank.")
 
     except Exception as e:
-        st.error(f"Gagal memuat dashboard saldo: {e}")
+        st.error(f"Gagal memuat dashboard: {e}")
