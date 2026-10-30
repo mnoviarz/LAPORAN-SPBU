@@ -27,7 +27,7 @@ def init_connection():
 try:
     client = init_connection()
     # Buka Spreadsheet berdasarkan nama file di Google Drive Anda
-    spreadsheet = client.open("Database SPBU Pulau Gag")
+    spreadsheet = client.open("Database SPBU Berkah Cahaya Gag")
     sheet_stok = spreadsheet.worksheet("Stok_BBM")
     sheet_riwayat = spreadsheet.worksheet("Riwayat_Laporan")
 except Exception as e:
