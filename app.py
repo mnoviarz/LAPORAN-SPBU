@@ -186,7 +186,7 @@ elif menu == "🏦 Catat Setoran Bank":
 # --- MENU 3: DASHBOARD & HISTORI ---
 elif menu == "📊 Dashboard & Histori":
     st.title("📊 Dashboard & Saldo Kas SPBU")
-    st.markdown("Pantau posisi sisa saldo uang, grafik omzet, dan grafik sisa stok BBM terkini.")
+    st.markdown("Pantau posisi sisa saldo uang, grafik omzet, dan informasi sisa stok BBM terkini.")
 
     try:
         data_riwayat = sheet_riwayat.get_all_records()
@@ -216,23 +216,33 @@ elif menu == "📊 Dashboard & Histori":
 
         st.markdown("---")
 
-        # --- BAGIAN GRAFIK SISA STOK TERBARU ---
-        st.subheader("⛽ Grafik Posisi Sisa Stok BBM Terkini")
+        # --- BAGIAN INFORMASI ANGKA & GRAFIK SISA STOK TERBARU ---
+        st.subheader("⛽ Informasi Sisa Stok BBM Terkini")
         if not df_stok.empty:
-            # Ambil baris terakhir dari data stok
             latest_stok_row = df_stok.iloc[-1]
+            sisa_ptl = float(latest_stok_row.get("Sisa_Ptl", 0))
+            sisa_sol = float(latest_stok_row.get("Sisa_Sol", 0))
+            sisa_mtn = float(latest_stok_row.get("Sisa_Mtn", 0))
+            
+            # Tampilkan Angka Jelas Menggunakan Kotak Metrik (Sangat Mudah Dibaca)
+            col_st1, col_st2, col_st3 = st.columns(3)
+            with col_st1:
+                st.metric("🔴 Sisa Pertalite", f"{sisa_ptl:,.0f} Liter")
+            with col_st2:
+                st.metric("🟡 Sisa Biosolar", f"{sisa_sol:,.0f} Liter")
+            with col_st3:
+                st.metric("🔵 Sisa Minyak Tanah", f"{sisa_mtn:,.0f} Liter")
+
+            # Grafik Batang Pendukung
+            st.markdown("")
+            st.caption("Visualisasi Grafik Batang Sisa Stok:")
             stok_chart_data = pd.DataFrame({
                 "Produk": ["Pertalite", "Biosolar", "Minyak Tanah"],
-                "Sisa Stok (Liter)": [
-                    float(latest_stok_row.get("Sisa_Ptl", 0)),
-                    float(latest_stok_row.get("Sisa_Sol", 0)),
-                    float(latest_stok_row.get("Sisa_Mtn", 0))
-                ]
+                "Sisa Stok (Liter)": [sisa_ptl, sisa_sol, sisa_mtn]
             }).set_index("Produk")
             
-            # Tampilkan sebagai bar chart
             st.bar_chart(stok_chart_data)
-            st.caption(f"📅 Posisi stok berdasarkan laporan terakhir tanggal: {latest_stok_row.get('tanggal', '-')}")
+            st.caption(f"📅 Data diperbarui dari laporan tanggal: {latest_stok_row.get('tanggal', '-')}")
         else:
             st.info("Belum ada data stok yang tercatat.")
 
@@ -253,26 +263,3 @@ elif menu == "📊 Dashboard & Histori":
 
             mask = (df_riwayat["Tanggal_DT"].dt.date >= start_date) & (df_riwayat["Tanggal_DT"].dt.date <= end_date)
             df_filtered = df_riwayat.loc[mask]
-
-            st.markdown("---")
-            st.subheader("📈 Grafik Tren Omzet Harian")
-            if not df_filtered.empty and "Tanggal" in df_filtered.columns:
-                chart_data = df_filtered.set_index("Tanggal")[["Total_Omzet"]]
-                st.line_chart(chart_data)
-            else:
-                st.info("Tidak ada data omzet pada rentang tanggal tersebut.")
-
-            st.markdown("---")
-            st.subheader("📋 Histori Laporan Harian")
-            st.dataframe(df_filtered.drop(columns=["Tanggal_DT"], errors="ignore"), use_container_width=True)
-
-        # Histori Setoran Bank
-        st.markdown("---")
-        st.subheader("🏦 Riwayat Setoran ke Bank")
-        if not df_bank.empty:
-            st.dataframe(df_bank, use_container_width=True)
-        else:
-            st.info("Belum ada catatan setoran uang ke bank.")
-
-    except Exception as e:
-        st.error(f"Gagal memuat dashboard: {e}")
