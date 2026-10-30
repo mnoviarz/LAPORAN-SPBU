@@ -39,13 +39,12 @@ def load_last_stock():
             last_row = data[-1]
             return {
                 "ptl": float(last_row.get("Sisa_Ptl", 0.0)),
-                "pmx": float(last_row.get("Sisa_Pmx", 0.0)),
                 "sol": float(last_row.get("Sisa_Sol", 0.0)),
-                "dex": float(last_row.get("Sisa_Dex", 0.0)),
+                "mtn": float(last_row.get("Sisa_Mtn", 0.0)),
             }
     except Exception:
         pass
-    return {"ptl": 0.0, "pmx": 0.0, "sol": 0.0, "dex": 0.0}
+    return {"ptl": 0.0, "sol": 0.0, "mtn": 0.0}
 
 last_stock = load_last_stock()
 
@@ -67,29 +66,26 @@ if menu == "📝 Input Laporan Harian":
         st.subheader("⛽ 2. Rekonsiliasi Stok BBM (Liter)")
         st.info("💡 *Stok Awal otomatis terambil dari sisa stok akhir hari sebelumnya di Google Sheets.*")
         
+        # Pertalite
         c1, c2, c3, c4 = st.columns(4)
         with c1: stok_awal_ptl = st.number_input("Stok Awal Ptl", min_value=0.0, value=last_stock["ptl"], step=10.0)
         with c2: stok_masuk_ptl = st.number_input("Stok Masuk Ptl", min_value=0.0, step=10.0)
         with c3: terjual_ptl = st.number_input("Terjual Ptl", min_value=0.0, step=10.0)
         with c4: harga_ptl = st.number_input("Harga/Liter Ptl", value=10000.0, step=100.0)
 
-        d1, d2, d3, d4 = st.columns(4)
-        with d1: stok_awal_pmx = st.number_input("Stok Awal Pmx", min_value=0.0, value=last_stock["pmx"], step=10.0)
-        with d2: stok_masuk_pmx = st.number_input("Stok Masuk Pmx", min_value=0.0, step=10.0)
-        with d3: terjual_pmx = st.number_input("Terjual Pmx", min_value=0.0, step=10.0)
-        with d4: harga_pmx = st.number_input("Harga/Liter Pmx", value=13000.0, step=100.0)
-
+        # Biosolar
         e1, e2, e3, e4 = st.columns(4)
         with e1: stok_awal_sol = st.number_input("Stok Awal Solar", min_value=0.0, value=last_stock["sol"], step=10.0)
         with e2: stok_masuk_sol = st.number_input("Stok Masuk Solar", min_value=0.0, step=10.0)
         with e3: terjual_sol = st.number_input("Terjual Solar", min_value=0.0, step=10.0)
         with e4: harga_sol = st.number_input("Harga/Liter Solar", value=6800.0, step=100.0)
 
-        f1, f2, f3, f4 = st.columns(4)
-        with f1: stok_awal_dex = st.number_input("Stok Awal Dex", min_value=0.0, value=last_stock["dex"], step=10.0)
-        with f2: stok_masuk_dex = st.number_input("Stok Masuk Dex", min_value=0.0, step=10.0)
-        with f3: terjual_dex = st.number_input("Terjual Dex", min_value=0.0, step=10.0)
-        with f4: harga_dex = st.number_input("Harga/Liter Dex", value=14500.0, step=100.0)
+        # Minyak Tanah
+        m1, m2, m3, m4 = st.columns(4)
+        with m1: stok_awal_mtn = st.number_input("Stok Awal M. Tanah", min_value=0.0, value=last_stock["mtn"], step=10.0)
+        with m2: stok_masuk_mtn = st.number_input("Stok Masuk M. Tanah", min_value=0.0, step=10.0)
+        with m3: terjual_mtn = st.number_input("Terjual M. Tanah", min_value=0.0, step=10.0)
+        with m4: harga_mtn = st.number_input("Harga/Liter M. Tanah", value=15000.0, step=100.0)
 
         st.markdown("---")
         st.subheader("🛢️ 3. Penjualan Oli / Pelumas")
@@ -113,16 +109,14 @@ if menu == "📝 Input Laporan Harian":
 
     if submitted:
         stok_akhir_ptl = stok_awal_ptl + stok_masuk_ptl - terjual_ptl
-        stok_akhir_pmx = stok_awal_pmx + stok_masuk_pmx - terjual_pmx
         stok_akhir_sol = stok_awal_sol + stok_masuk_sol - terjual_sol
-        stok_akhir_dex = stok_awal_dex + stok_masuk_dex - terjual_dex
+        stok_akhir_mtn = stok_awal_mtn + stok_masuk_mtn - terjual_mtn
 
         rp_ptl = terjual_ptl * harga_ptl
-        rp_pmx = terjual_pmx * harga_pmx
         rp_sol = terjual_sol * harga_sol
-        rp_dex = terjual_dex * harga_dex
+        rp_mtn = terjual_mtn * harga_mtn
         
-        total_penjualan_bbm = rp_ptl + rp_pmx + rp_sol + rp_dex
+        total_penjualan_bbm = rp_ptl + rp_sol + rp_mtn
         total_penjualan_oli = omzet_oli_kecil + omzet_oli_besar
         total_omzet_keseluruhan = total_penjualan_bbm + total_penjualan_oli
 
@@ -136,7 +130,10 @@ if menu == "📝 Input Laporan Harian":
         else:
             status_kas = f"Minus Rp {abs(selisih):,.0f}"
 
-        sheet_stok.append_row([str(tanggal), stok_akhir_ptl, stok_akhir_pmx, stok_akhir_sol, stok_akhir_dex])
+        # Simpan ke Google Sheets (Tab Stok_BBM: Tanggal, Ptl, Sol, Mtn)
+        sheet_stok.append_row([str(tanggal), stok_akhir_ptl, stok_akhir_sol, stok_akhir_mtn])
+        
+        # Simpan ke Google Sheets (Tab Riwayat_Laporan)
         sheet_riwayat.append_row([
             str(tanggal), shift, pelapor, 
             total_penjualan_bbm, total_penjualan_oli, total_omzet_keseluruhan,
@@ -151,9 +148,8 @@ if menu == "📝 Input Laporan Harian":
 --------------------------------------------------
 ⛽ *1. REKAP PENJUALAN & STOK BBM*
 • *Pertalite:* Terjual {terjual_ptl:,.0f} L (Sisa {stok_akhir_ptl:,.0f} L)
-• *Pertamax:* Terjual {terjual_pmx:,.0f} L (Sisa {stok_akhir_pmx:,.0f} L)
 • *Biosolar:* Terjual {terjual_sol:,.0f} L (Sisa {stok_akhir_sol:,.0f} L)
-• *Dexlite:* Terjual {terjual_dex:,.0f} L (Sisa {stok_akhir_dex:,.0f} L)
+• *Minyak Tanah:* Terjual {terjual_mtn:,.0f} L (Sisa {stok_akhir_mtn:,.0f} L)
 🔹 *Total Penjualan BBM:* *Rp {total_penjualan_bbm:,.0f}*
 
 🛢️ *2. PENJUALAN OLI & OMZET*
@@ -180,7 +176,6 @@ elif menu == "📊 Dashboard & Histori":
         if data_riwayat:
             df = pd.DataFrame(data_riwayat)
             
-            # Tampilkan metrik ringkas
             st.subheader("📌 Ringkasan Performa")
             col_m1, col_m2, col_m3 = st.columns(3)
             with col_m1:
@@ -194,7 +189,6 @@ elif menu == "📊 Dashboard & Histori":
                 st.metric("Akumulasi Penjualan BBM", f"Rp {total_bbm_all:,.0f}")
 
             st.markdown("---")
-            # Grafik Tren Omzet
             st.subheader("📈 Grafik Tren Omzet Keseluruhan")
             if "Tanggal" in df.columns and "Total_Omzet" in df.columns:
                 chart_data = df.set_index("Tanggal")[["Total_Omzet"]]
