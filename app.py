@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from datetime import date
+from datetime import date, datetime
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -130,10 +130,7 @@ if menu == "📝 Input Laporan Harian":
         else:
             status_kas = f"Minus Rp {abs(selisih):,.0f}"
 
-        # Simpan ke Google Sheets (Tab Stok_BBM: Tanggal, Ptl, Sol, Mtn)
         sheet_stok.append_row([str(tanggal), stok_akhir_ptl, stok_akhir_sol, stok_akhir_mtn])
-        
-        # Simpan ke Google Sheets (Tab Riwayat_Laporan)
         sheet_riwayat.append_row([
             str(tanggal), shift, pelapor, 
             total_penjualan_bbm, total_penjualan_oli, total_omzet_keseluruhan,
@@ -169,35 +166,60 @@ if menu == "📝 Input Laporan Harian":
 
 elif menu == "📊 Dashboard & Histori":
     st.title("📊 Dashboard & Riwayat Operasional SPBU")
-    st.markdown("Grafik dan rekap data histori yang tersimpan di Google Sheets.")
+    st.markdown("Filter data berdasarkan rentang tanggal. Secara *default* menampilkan data bulan berjalan.")
 
     try:
         data_riwayat = sheet_riwayat.get_all_records()
         if data_riwayat:
             df = pd.DataFrame(data_riwayat)
             
-            st.subheader("📌 Ringkasan Performa")
-            col_m1, col_m2, col_m3 = st.columns(3)
-            with col_m1:
-                total_akumulasi_omzet = df["Total_Omzet"].sum() if "Total_Omzet" in df.columns else 0
-                st.metric("Total Akumulasi Omzet", f"Rp {total_akumulasi_omzet:,.0f}")
-            with col_m2:
-                total_laporan = len(df)
-                st.metric("Total Shift / Laporan Tercatat", f"{total_laporan} Laporan")
-            with col_m3:
-                total_bbm_all = df["Total_BBM"].sum() if "Total_BBM" in df.columns else 0
-                st.metric("Akumulasi Penjualan BBM", f"Rp {total_bbm_all:,.0f}")
-
-            st.markdown("---")
-            st.subheader("📈 Grafik Tren Omzet Keseluruhan")
-            if "Tanggal" in df.columns and "Total_Omzet" in df.columns:
-                chart_data = df.set_index("Tanggal")[["Total_Omzet"]]
-                st.line_chart(chart_data)
+            # Konversi kolom Tanggal ke format datetime
+            df["Tanggal_DT"] = pd.to_datetime(df["Tanggal"], errors="coerce")
+            
+            # Tentukan default rentang tanggal (Awal bulan ini sampai hari ini)
+            today = date.today()
+            first_day_of_month = today.replace(day=1)
             
             st.markdown("---")
-            st.subheader("📋 Tabel Riwayat Laporan Lengkap")
-            st.dataframe(df, use_container_width=True)
+            st.subheader("📅 Filter Periode Tanggal")
+            col_f1, col_f2 = st.columns(2)
+            with col_f1:
+                start_date = st.date_input("Dari Tanggal", value=first_day_of_month)
+            with col_f2:
+                end_date = st.date_input("Sampai Tanggal", value=today)
+
+            # Filter dataframe berdasarkan tanggal
+            mask = (df["Tanggal_DT"].dt.date >= start_date) & (df["Tanggal_DT"].dt.date <= end_date)
+            df_filtered = df.loc[mask]
+
+            st.markdown("---")
+            st.subheader(f"📌 Ringkasan Performa ({start_date.strftime('%d/%m/%Y')} s.d {end_date.strftime('%d/%m/%Y')})")
+            
+            col_m1, col_m2, col_m3 = st.columns(3)
+            with col_m1:
+                total_akumulasi_omzet = df_filtered["Total_Omzet"].sum() if "Total_Omzet" in df_filtered.columns else 0
+                st.metric("Total Omzet Periode Ini", f"Rp {total_akumulasi_omzet:,.0f}")
+            with col_m2:
+                total_laporan = len(df_filtered)
+                st.metric("Jumlah Shift / Laporan", f"{total_laporan} Laporan")
+            with col_m3:
+                total_bbm_all = df_filtered["Total_BBM"].sum() if "Total_BBM" in df_filtered.columns else 0
+                st.metric("Penjualan BBM Periode Ini", f"Rp {total_bbm_all:,.0f}")
+
+            st.markdown("---")
+            st.subheader("📈 Grafik Tren Omzet Harian")
+            if not df_filtered.empty and "Tanggal" in df_filtered.columns and "Total_Omzet" in df_filtered.columns:
+                chart_data = df_filtered.set_index("Tanggal")[["Total_Omzet"]]
+                st.line_chart(chart_data)
+            else:
+                st.info("Tidak ada data omzet pada rentang tanggal yang dipilih.")
+            
+            st.markdown("---")
+            st.subheader("📋 Tabel Riwayat Laporan Terfilter")
+            # Tampilkan dataframe tanpa kolom bantuan datetime sementara
+            display_df = df_filtered.drop(columns=["Tanggal_DT"], errors="ignore")
+            st.dataframe(display_df, use_container_width=True)
         else:
-            st.info("Belum ada data histori laporan yang tersimpan. Silakan isi laporan terlebih dahulu melalui menu input.")
+            st.info("Belum ada data histori laporan yang tersimpan.")
     except Exception as e:
-        st.error(f"Gagal memuat data dashboard: {e}")
+        st.error(f"Gagal memuat dashboard: {e}")
